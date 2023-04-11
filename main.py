@@ -1,0 +1,84 @@
+##
+# Se importan las librerias para el funcionamiento del programa
+import numpy as np
+import matplotlib.pyplot as plt
+import os
+import skimage.io as io
+from skimage.color import rgb2gray, rgba2rgb
+from scipy.signal import correlate
+import glob
+import sklearn.metrics as mt
+import argparse
+# El proceso de evaluacion para todas las imagenes dura entre 2-6 minutos.
+# Se importan las imagenes en la carpeta modelos donde se tiene la segmentación de un corazón con cardiomegalia
+sano = rgb2gray(io.imread(os.path.join('Rodriguez_Ballesteros_code', 'Modelos','00000042_007.png')))
+sanoseg = rgb2gray(rgba2rgb(io.imread(os.path.join('Rodriguez_Ballesteros_code', 'Modelos','Sano.png'))))
+# Se localiza el corazón en el kernel de la imagen binaria 'cardseg' intersectada con la imágen '00000374_000.png'
+kernel = (sanoseg*sano)[451:723,372:708]
+# Se normaliza el kernel y se guarda en la variable fill
+fil = (kernel - np.mean(kernel)) / (np.std(kernel) * kernel.size)
+# Se define una función para la cross-correlacion
+def corr(imagen):
+    # Se noramliza la imagen a evaluar y se guarda en la variable ne .
+    ne = (imagen - np.mean(imagen)) / (np.std(imagen) * imagen.size)
+    # Se aplica la crosscorrelación en modo 'same' para evitar problemas de tamaño similar de imagen y en metodo
+    # automatico para que reconozca el metodo más rapido
+    cross = correlate(ne, fil, mode='same', method='auto')
+    # Se retorna la suma de la crosscorrelación para obtener un resultado numérico
+    return np.sum(cross)
+# Se importan las imagenes a evaluar de la carpeta 'Datos', 'Imágenes'
+images = os.path.join('Rodriguez_Ballesteros_code', 'Datos', 'Imágenes','*.png')
+# Se leen las imagnes y se transforman a escala de grises
+images_list = list(map(io.imread, glob.glob(images)))
+images_black = list(map(rgb2gray, images_list))
+# Se aplica la cross-correlacion para todas las imagenes en escala de grises
+resul = list(map(corr, images_black))
+# Se inicializa un arreglo de zeros para el resultado de todas las imagenes
+tiene = np.zeros(len(resul))
+# Se recorren los resultados de las imagenes
+for i in range (0, len(resul)):
+    # Si el resultado de la imagen es superior a 0.003, un valor 'promedio' que se obtuvo para la imagen de donde se
+    # obtuvo el kernel y da un buen resultado
+    if resul[i] > 0.03 or resul[i] < 0.015:
+        # Se considera la imagen como corazon con cardiomegalia
+        tiene[i] = 1
+# Se guarda el arreglo de las predicciones
+np.savetxt(os.path.join('Rodriguez_Ballesteros_code','pred.txt'), tiene)
+# Se cargan las anotaciones de la base de datos
+anotaciones = np.loadtxt(os.path.join('Rodriguez_Ballesteros_code', 'Datos', 'Anotaciones','anotaciones.txt'))
+# Se evalua la matriz de confusion, precision, cobertura y f medida para las anotaciones y predicciones
+conf_mat = mt.confusion_matrix(anotaciones, tiene)
+precision = mt.precision_score(anotaciones, tiene)
+recall = mt.recall_score(anotaciones, tiene)
+f_score = mt.f1_score(anotaciones, tiene)
+# Se imprimen los resultados de la matriz de confusion, precision, cobertura y f medida para las anotaciones y
+# predicciones
+print('La matriz de confusión es: \n' + str(conf_mat))
+print('La presicion es: ' + str(precision) + '\nLa cobertura es: ' + str(recall) + '\nLa f medida es: ' + str(f_score))
+# Se guardan los resultados de las metricas en un archivo de texto
+arc = open(os.path.join('Rodriguez_Ballesteros_code','metricas_pred.txt'), 'w')
+arc.write('Matriz de confusion:\n')
+arc.write(str(conf_mat) + '\n')
+arc.write('Precision :' + str(precision) + '\n')
+arc.write('Cobertura: ' + str(recall) + '\n')
+arc.write('F medida: ' + str(f_score) + '\n')
+arc.close()
+##
+# la libreria argparse se encarga de recibir los argumentos que le pasen al script
+# Funcion de evaluacion
+from Rodriguez_Ballesteros_code.libs.trainer import evaluate
+
+if __name__ == '__main__':
+
+    # Inicializacion del Parser
+
+    parser = argparse.ArgumentParser()
+
+    # '--name': nombre de la variable que estan creando
+    # 'type': tipo de dato que se recibira como argumento
+    # 'default': valor que tomara la variable en caso que no se utilice
+    #   el argumento cuando se llame el script
+    parser.add_argument('--image', type=str, default='00000124_000.png', help='Nombre de la imagen que se va a evaluar')
+    # args va a almacenar los argumentos que le pasen al script
+    args = parser.parse_args()
+    evaluate(image=args.image)
