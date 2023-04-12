@@ -1,3 +1,14 @@
+Este proyecto fue rezlizado para el trabajo de fin de curso de 
+análisis y procesamiento de imagenes
+Fue realizado con fines netamente educativos
+La base de datos de las radiografias torácicas NO son de nuestra
+autoría
+La base de datos de radiograf´ıa de tórax subministrada
+por NIH Clinical Center, consiste en más de 112000
+imágenes, de las cuales se estudiaron solo 276 para efectos
+prácticos de procesamiento.
+
+
 Este programa requiere las siguientes librerias:
 numpy					v 1.18.1
 matplotlib.pyplot			v 3.3.4
